@@ -183,7 +183,7 @@ td.t{font-variant-numeric:normal;}
   <div class="wrap"><table id="plyr-tbl"></table></div>
   <h4>Defense</h4>
   <div class="wrap"><table id="def-tbl"></table></div>
-  <h4>By play call</h4>
+  <h4>Offensive play calls</h4>
   <div class="wrap"><table id="call-tbl"></table></div>
   <p class="note">Split tackles count as a half each.</p>
 </section>
@@ -227,8 +227,10 @@ td.t{font-variant-numeric:normal;}
       <button class="sheet-close" id="sheet-close">&#10005;</button>
     </div>
 
-    <h4>Play call</h4>
-    <div class="chips" id="call-chips"></div>
+    <div id="call-block">
+      <h4>Play call</h4>
+      <div class="chips" id="call-chips"></div>
+    </div>
 
     <div id="qb-block"></div>
 
@@ -310,7 +312,7 @@ var state=loadState()||{
 };
 if(state.qb===undefined) state.qb=null;
 var hist=[];
-var cur={ptype:"Run", call:null, player:null, tacklers:[], opp:"", yards:0, flags:[], qbOpen:false};
+var cur={ptype:"Run", call:null, player:null, tacklers:[], yards:0, flags:[], qbOpen:false};
 if(!storeOK) showWarn();
 
 /* ---------- helpers ---------- */
@@ -362,11 +364,12 @@ function chipRow(el,items,selected,onPick,cls){
 /* ---------- sheet ---------- */
 function openSheet(ptype){
   cur.ptype=ptype; cur.call=null; cur.player=null; cur.tacklers=[];
-  cur.opp=""; cur.yards=0; cur.flags=[]; cur.qbOpen=false;
+  cur.yards=0; cur.flags=[]; cur.qbOpen=false;
   // QB carries over from the last play unless it gets changed here.
   if(state.unit==="O" && !state.qb){
     var q=qbList(); if(q.length) state.qb=plabel(q[0]);
   }
+  if(state.unit==="D") cur.call=ptype;   // defense logs run or pass, nothing more
   id("sheet-title").textContent=(state.unit==="O"?"Our ":"Their ")+ptype.toLowerCase();
   renderCalls(); renderQB(); renderWho(); renderYards(); renderFlags();
   id("overlay").classList.add("on"); id("sheet").classList.add("on");
@@ -390,6 +393,9 @@ function renderUnit(){
   });
 }
 function renderCalls(){
+  var block=id("call-block");
+  block.classList.toggle("hide", state.unit==="D");
+  if(state.unit==="D") return;
   var list=state.plays.filter(function(p){ return p.type===cur.ptype; });
   var el=id("call-chips");
   if(!list.length){ el.innerHTML='<p class="note">No '+cur.ptype+' plays in your list.</p>'; return; }
@@ -421,11 +427,9 @@ function renderWho(){
       cur.player=(cur.player===v?null:v); renderWho();
     });
   } else {
-    id("who-label").textContent="Their ball carrier / target";
-    box.innerHTML='<input id="opp-num" type="number" inputmode="numeric" placeholder="Their jersey number" style="margin-bottom:10px">'+
-      '<h4>Tackler</h4><div class="chips" id="tk-chips"></div>'+
+    id("who-label").textContent="Tackler";
+    box.innerHTML='<div class="chips" id="tk-chips"></div>'+
       '<p class="note" style="margin-top:6px">Tap two for a split tackle. Each gets a half.</p>';
-    var o=id("opp-num"); o.value=cur.opp; o.oninput=function(){ cur.opp=o.value; };
     var d=state.roster.filter(function(p){ return p.unit==="D"||p.unit==="B"; });
     chipRow(id("tk-chips"),d.map(function(p){ return {v:plabel(p),t:plabel(p)}; }),cur.tacklers,function(v){
       var i=cur.tacklers.indexOf(v);
@@ -567,20 +571,21 @@ function renderStats(){
 
   // play calls
   var cm={};
-  L.forEach(function(p){
+  L.filter(function(p){ return p.unit==="O"; }).forEach(function(p){
     var k=p.unit+"|"+p.play_call;
     if(!cm[k]) cm[k]={u:p.unit,c:p.play_call,n:0,y:0,td:0};
     cm[k].n++; cm[k].y+=p.yards; cm[k].td+=p.touchdown?1:0;
   });
-  tbl(id("call-tbl"),["Call","Side","Plays","Yds","Avg","TD"],
+  tbl(id("call-tbl"),["Call","Plays","Yds","Avg","TD"],
     Object.keys(cm).map(function(k){ var g=cm[k];
-      return [g.c,g.u,g.n,g.y,(g.y/g.n).toFixed(2),g.td]; })
-      .sort(function(a,b){ return b[4]-a[4]; }));
+      return [g.c,g.n,g.y,(g.y/g.n).toFixed(2),g.td]; })
+      .sort(function(a,b){ return b[3]-a[3]; }));
 }
 
 /* ---------- record ---------- */
 function record(){
-  if(!cur.call){ toast("Pick a play call first."); return; }
+  if(state.unit==="O" && !cur.call){ toast("Pick a play call first."); return; }
+  if(!cur.call) cur.call=cur.ptype;
   var has=function(f){ return cur.flags.indexOf(f)>-1; };
   var yds=has("Incomplete")?0:(parseInt(cur.yards,10)||0);
   var start=state.yardline;
@@ -599,7 +604,7 @@ function record(){
     yardline_start:start, hash:state.hash,
     play_type:cur.ptype, play_call:cur.call,
     qb: state.unit==="O" ? (state.qb||"") : "",
-    player: state.unit==="O" ? (cur.player||"") : (cur.opp?"Opp #"+cur.opp:"Opp"),
+    player: state.unit==="O" ? (cur.player||"") : "",
     tacklers: state.unit==="O" ? "" : cur.tacklers.join("; "),
     tackler_count: state.unit==="O" ? 0 : cur.tacklers.length,
     yards:yds,
