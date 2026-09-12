@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0A0A0B">
+<title>Sideline</title>
+<style>
+:root{
+  --ink:#0A0A0B; --surface:#151517; --raise:#1F1F23; --line:#2E2E34;
+  --chalk:#FFFFFF; --dim:#8C8C95;
+  --red:#C8102E; --red-deep:#8A0B20; --red-soft:#E23A50;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html,body{margin:0; background:var(--ink); color:var(--chalk);
+  font-family:'Helvetica Neue Condensed','HelveticaNeue-CondensedBold','Roboto Condensed',system-ui,-apple-system,sans-serif;
+  -webkit-text-size-adjust:100%; overscroll-behavior-y:contain;}
+body{padding:0 10px env(safe-area-inset-bottom) 10px; max-width:640px; margin:0 auto;}
+
+.banner{position:sticky; top:0; z-index:50; background:var(--surface);
+  border-bottom:2px solid var(--red); margin:0 -10px 8px;
+  padding:calc(8px + env(safe-area-inset-top)) 12px 9px;
+  display:flex; align-items:center; justify-content:space-between; gap:10px;}
+.tag{font-size:10.5px; font-weight:700; letter-spacing:.16em; color:var(--red-soft); margin-bottom:3px;}
+.dd{font-size:30px; font-weight:700; color:var(--chalk); line-height:1; font-variant-numeric:tabular-nums;}
+.spot{font-size:17px; color:var(--dim); margin-left:7px;}
+.meta{font-size:12px; color:var(--dim); text-align:right; line-height:1.45;}
+
+nav{display:flex; border-bottom:1px solid var(--line); margin:0 -10px 10px; padding:0 10px;}
+nav button{flex:1; background:none; border:none; border-bottom:3px solid transparent;
+  color:var(--dim); font:inherit; font-size:14px; padding:9px 0; cursor:pointer;}
+nav button.on{color:var(--chalk); border-bottom-color:var(--red); font-weight:700;}
+
+h4{font-size:13px; color:var(--dim); margin:14px 0 6px; font-weight:600; letter-spacing:.02em;}
+
+.chips{display:flex; flex-wrap:wrap; gap:7px;}
+.chip{padding:12px 14px; font-size:15px; background:var(--surface); border:1px solid var(--line);
+  border-radius:9px; color:var(--chalk); font:inherit; cursor:pointer;}
+.chip.on{background:var(--red); border-color:var(--red); color:#fff; font-weight:700;}
+.chip.sm{padding:9px 12px; font-size:14px;}
+.unit-row{display:grid; grid-template-columns:1fr 1fr; gap:8px;}
+.unit-row .chip{padding:15px 0; font-size:18px; text-align:center; font-weight:600;}
+.unit-row .chip.on{background:var(--red); border-color:var(--red);}
+.unit-row .chip.on[data-v="D"]{background:var(--chalk); border-color:var(--chalk); color:#000;}
+
+.rp-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:10px 0 14px;}
+.rp-btn{background:var(--raise); border:2px solid var(--line); border-radius:13px; color:var(--chalk);
+  font:inherit; font-size:29px; font-weight:700; padding:24px 0; letter-spacing:.05em; cursor:pointer;}
+.rp-btn.run{border-color:var(--red);}
+.rp-btn.pass{border-color:var(--chalk);}
+
+.row2{display:grid; grid-template-columns:1fr 1fr; gap:8px;}
+.row3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;}
+button.sec{background:var(--raise); color:var(--chalk); border:1px solid var(--line);
+  border-radius:9px; font:inherit; font-size:15px; padding:13px 0; cursor:pointer;}
+button.big{width:100%; background:var(--red); color:#fff; border:none; border-radius:11px;
+  font:inherit; font-size:22px; font-weight:700; padding:19px 0; margin-top:14px; cursor:pointer;}
+input{background:var(--surface); border:1px solid var(--line); color:var(--chalk);
+  border-radius:8px; font:inherit; font-size:16px; padding:10px; width:100%;}
+textarea{background:var(--surface); border:1px solid var(--line); color:var(--chalk);
+  border-radius:8px; font:inherit; font-size:13px; padding:10px; width:100%;
+  min-height:110px; font-family:ui-monospace,Menlo,monospace;}
+label{display:block; font-size:13px; color:var(--dim); margin:10px 0 4px; font-weight:600;}
+
+.qbbar{display:flex; align-items:center; gap:10px; background:var(--surface);
+  border:1px solid var(--line); border-left:3px solid var(--red); border-radius:9px; padding:10px 12px;}
+.qbbar .lab{font-size:12px; color:var(--dim); font-weight:700; letter-spacing:.08em;}
+.qbbar .val{flex:1; font-size:16px;}
+.qbbar button{background:none; border:none; color:var(--red-soft); font:inherit; font-size:14px; cursor:pointer; padding:0;}
+
+.yards-row{display:flex; align-items:center; gap:10px; margin-bottom:8px;}
+.y-read{font-size:42px; font-weight:700; min-width:78px; text-align:center;
+  font-variant-numeric:tabular-nums; color:var(--red-soft);}
+.ybtns{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px;}
+.ybtns .chip{flex:1 0 50px; text-align:center; padding:11px 0; font-variant-numeric:tabular-nums; font-size:15px;}
+
+.overlay{position:fixed; inset:0; background:rgba(0,0,0,.72); z-index:200;
+  opacity:0; transition:opacity .22s; pointer-events:none;}
+.overlay.on{opacity:1; pointer-events:all;}
+.sheet{position:fixed; bottom:0; left:0; right:0; max-width:640px; margin:0 auto;
+  background:var(--surface); border-top:2px solid var(--red); border-radius:18px 18px 0 0;
+  padding:0 12px calc(22px + env(safe-area-inset-bottom));
+  max-height:90vh; overflow-y:auto; z-index:201;
+  transform:translateY(102%); transition:transform .28s cubic-bezier(.32,.72,0,1);}
+.sheet.on{transform:translateY(0);}
+.handle{width:38px; height:4px; background:var(--line); border-radius:2px; margin:12px auto 0;}
+.sheet-head{display:flex; align-items:center; padding:10px 0 2px;}
+.sheet-title{font-size:21px; font-weight:700; flex:1;}
+.sheet-close{background:var(--raise); border:1px solid var(--line); border-radius:50%;
+  width:34px; height:34px; color:var(--dim); font:inherit; font-size:17px; cursor:pointer;}
+
+table{width:100%; border-collapse:collapse; font-size:13px;}
+th{color:var(--dim); text-align:left; font-weight:600; border-bottom:1px solid var(--line); padding:6px 4px; white-space:nowrap;}
+td{padding:6px 4px; border-bottom:1px solid rgba(255,255,255,.06); font-variant-numeric:tabular-nums;}
+td.t{font-variant-numeric:normal;}
+.wrap{overflow-x:auto;}
+.note{font-size:13px; color:var(--dim); line-height:1.5; margin-top:8px;}
+.warn{background:#2a0d11; border:1px solid var(--red); color:#ffd2d8; padding:10px 12px;
+  border-radius:9px; font-size:13px; margin:10px 0; line-height:1.45;}
+.hide{display:none;}
+#toast{position:fixed; left:50%; transform:translateX(-50%); bottom:28px; z-index:300;
+  background:var(--raise); border:1px solid var(--line); color:var(--chalk);
+  padding:12px 18px; border-radius:10px; font-size:15px; opacity:0; transition:opacity .2s;
+  pointer-events:none; max-width:90vw; text-align:center; white-space:pre-line;}
+#toast.on{opacity:1;}
+</style>
+</head>
+<body>
+
+<div class="banner">
+  <div>
+    <div class="tag">CARSON GRAHAM EAGLES</div>
+    <div><span class="dd" id="b-dd">1st &amp; 10</span><span class="spot" id="b-spot">Own 25</span></div>
+  </div>
+  <div class="meta" id="b-meta"></div>
+</div>
+
+<nav>
+  <button data-tab="track" class="on">Track</button>
+  <button data-tab="log">Log</button>
+  <button data-tab="stats">Stats</button>
+  <button data-tab="setup">Setup</button>
+</nav>
+
+<!-- TRACK -->
+<section id="tab-track">
+  <div class="unit-row" id="unit-chips">
+    <button class="chip on" data-v="O">Offense</button>
+    <button class="chip" data-v="D">Defense</button>
+  </div>
+
+  <div class="rp-grid">
+    <button class="rp-btn run" id="btn-run">RUN</button>
+    <button class="rp-btn pass" id="btn-pass">PASS</button>
+  </div>
+
+  <div class="row2">
+    <button class="sec" id="undo">Undo last</button>
+    <button class="sec" id="newdrive">New drive</button>
+  </div>
+
+  <h4>Fix the situation</h4>
+  <div class="row3">
+    <div><label>Ball on</label><input id="f-spot" type="number" inputmode="numeric" min="0" max="100"></div>
+    <div><label>Down</label><input id="f-down" type="number" inputmode="numeric" min="1" max="4"></div>
+    <div><label>To go</label><input id="f-dist" type="number" inputmode="numeric" min="1" max="99"></div>
+  </div>
+  <div class="row2" style="margin-top:6px">
+    <div><label>Quarter</label><input id="f-qtr" type="number" inputmode="numeric" min="1" max="5"></div>
+    <div><label>Hash</label>
+      <div class="chips" style="margin-top:4px" id="hash-chips">
+        <button class="chip" data-v="L">L</button>
+        <button class="chip on" data-v="M">M</button>
+        <button class="chip" data-v="R">R</button>
+      </div>
+    </div>
+  </div>
+  <button class="sec" id="applyfix" style="width:100%;margin-top:9px">Apply</button>
+  <p class="note">Ball on is 0&ndash;100 from the offense's own goal line. 25 = own 25, 75 = their 25.</p>
+</section>
+
+<!-- LOG -->
+<section id="tab-log" class="hide">
+  <h4>Play by play</h4>
+  <div class="wrap"><table id="log-tbl"></table></div>
+  <button class="big" id="export" style="font-size:18px">Export CSV</button>
+  <div class="row2" style="margin-top:8px">
+    <button class="sec" id="copycsv">Copy CSV</button>
+    <button class="sec" id="delete-last">Delete last</button>
+  </div>
+  <p class="note">Export saves to Files. AirDrop or email it to your laptop for the R analysis.</p>
+</section>
+
+<!-- STATS -->
+<section id="tab-stats" class="hide">
+  <h4>Team</h4>
+  <div class="wrap"><table id="team-tbl"></table></div>
+  <h4>Quarterbacks</h4>
+  <div class="wrap"><table id="qb-tbl"></table></div>
+  <h4>Skill players</h4>
+  <div class="wrap"><table id="plyr-tbl"></table></div>
+  <h4>Defense</h4>
+  <div class="wrap"><table id="def-tbl"></table></div>
+  <h4>By play call</h4>
+  <div class="wrap"><table id="call-tbl"></table></div>
+  <p class="note">Split tackles count as a half each.</p>
+</section>
+
+<!-- SETUP -->
+<section id="tab-setup" class="hide">
+  <div id="storage-warn" class="warn hide"></div>
+  <label>Game name</label>
+  <input id="gamename" placeholder="2026-09-11 vs Handsworth">
+
+  <h4>Play list</h4>
+  <p class="note" style="margin-top:0">One per line: <code>Play Name, Run</code> or <code>Play Name, Pass</code></p>
+  <textarea id="plays-txt"></textarea>
+  <div class="row2" style="margin-top:6px">
+    <button class="sec" id="save-plays">Save play list</button>
+    <button class="sec" onclick="document.getElementById('f-plays').click()">Load CSV</button>
+  </div>
+  <input id="f-plays" type="file" accept=".csv,text/csv" class="hide">
+
+  <h4>Roster</h4>
+  <p class="note" style="margin-top:0">One per line: <code>number, name, O</code> &mdash; O, D or B for both.
+  Add a 4th field for position, e.g. <code>12, Cooke, O, QB</code>, and the QB list filters to those players.</p>
+  <textarea id="roster-txt"></textarea>
+  <div class="row2" style="margin-top:6px">
+    <button class="sec" id="save-roster">Save roster</button>
+    <button class="sec" onclick="document.getElementById('f-roster').click()">Load CSV</button>
+  </div>
+  <input id="f-roster" type="file" accept=".csv,text/csv" class="hide">
+
+  <h4>Danger</h4>
+  <button class="sec" id="clear" style="width:100%">Clear this game</button>
+  <p class="note">Export first. This cannot be undone.</p>
+</section>
+
+<!-- SHEET -->
+<div class="overlay" id="overlay">
+  <div class="sheet" id="sheet">
+    <div class="handle"></div>
+    <div class="sheet-head">
+      <span class="sheet-title" id="sheet-title">Run play</span>
+      <button class="sheet-close" id="sheet-close">&#10005;</button>
+    </div>
+
+    <h4>Play call</h4>
+    <div class="chips" id="call-chips"></div>
+
+    <div id="qb-block"></div>
+
+    <h4 id="who-label">Ball carrier</h4>
+    <div id="who-box"></div>
+
+    <h4>Yards</h4>
+    <div class="yards-row">
+      <div class="y-read" id="y-read">0</div>
+      <div class="row3" style="flex:1">
+        <button class="sec" id="y-minus">&minus;1</button>
+        <button class="sec" id="y-plus">+1</button>
+        <button class="sec" id="y-flip">+/&minus;</button>
+      </div>
+    </div>
+    <div class="ybtns" id="y-quick"></div>
+
+    <h4>Result</h4>
+    <div class="chips" id="flag-chips"></div>
+
+    <button class="big" id="record">Record play</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+"use strict";
+
+/* ---------- storage ---------- */
+var KEY="sideline.cg.v2", mem={}, storeOK=true;
+try{ localStorage.setItem("__t","1"); localStorage.removeItem("__t"); }catch(e){ storeOK=false; }
+function save(){
+  var s=JSON.stringify(state);
+  try{ if(storeOK) localStorage.setItem(KEY,s); else mem[KEY]=s; }
+  catch(e){ storeOK=false; mem[KEY]=s; showWarn(); }
+}
+function loadState(){
+  try{ var s=storeOK?localStorage.getItem(KEY):mem[KEY]; return s?JSON.parse(s):null; }catch(e){ return null; }
+}
+function showWarn(){
+  var w=id("storage-warn"); w.classList.remove("hide");
+  w.textContent="Browser storage is blocked, so the game is memory only and a refresh will lose it. Open the app from the home screen icon and export often.";
+}
+
+/* ---------- defaults ---------- */
+var DEF_PLAYS=[
+  {play:"Inside Zone",type:"Run"},{play:"Outside Zone",type:"Run"},{play:"Power",type:"Run"},
+  {play:"Counter",type:"Run"},{play:"Trap",type:"Run"},{play:"QB Keep",type:"Run"},{play:"Jet Sweep",type:"Run"},
+  {play:"Slant",type:"Pass"},{play:"Quick Out",type:"Pass"},{play:"Curl",type:"Pass"},
+  {play:"Post",type:"Pass"},{play:"Go",type:"Pass"},{play:"Screen",type:"Pass"},
+  {play:"Play Action Deep",type:"Pass"},{play:"Boot",type:"Pass"}
+];
+var DEF_ROSTER=[
+  {number:2,name:"Reed",unit:"O",pos:""},{number:4,name:"Alvarez",unit:"O",pos:""},
+  {number:7,name:"Boyd",unit:"D",pos:""},{number:12,name:"Cooke",unit:"O",pos:"QB"},
+  {number:15,name:"Mara",unit:"O",pos:"QB"},{number:21,name:"Nash",unit:"O",pos:""},
+  {number:22,name:"Okafor",unit:"D",pos:""},{number:24,name:"Pike",unit:"D",pos:""},
+  {number:33,name:"Dunne",unit:"O",pos:""},{number:44,name:"Vasquez",unit:"D",pos:""},
+  {number:55,name:"Hart",unit:"D",pos:""},{number:80,name:"Iverson",unit:"O",pos:""},
+  {number:84,name:"Bell",unit:"O",pos:""}
+];
+var QUICK=[-5,-2,0,1,2,3,4,5,7,10,15,20];
+
+/* Result flags depend on who has the ball and what kind of play it was. */
+function flagsFor(unit,ptype){
+  if(unit==="O") return ptype==="Run"
+    ? ["TD","Fumble lost","Penalty"]
+    : ["TD","Incomplete","Sack","INT","Fumble lost","Penalty"];
+  return ptype==="Run"
+    ? ["TD","TFL","FF","Fumble lost","Penalty"]
+    : ["TD","Incomplete","PBU","Sack","INT","FF","Fumble lost","Penalty"];
+}
+
+/* ---------- state ---------- */
+var state=loadState()||{
+  gameName:"", plays:DEF_PLAYS, roster:DEF_ROSTER, log:[],
+  unit:"O", qtr:1, drive:1, down:1, dist:10, yardline:25, hash:"M", qb:null
+};
+if(state.qb===undefined) state.qb=null;
+var hist=[];
+var cur={ptype:"Run", call:null, player:null, tacklers:[], opp:"", yards:0, flags:[], qbOpen:false};
+if(!storeOK) showWarn();
+
+/* ---------- helpers ---------- */
+function id(x){ return document.getElementById(x); }
+function toast(m,ms){
+  var t=id("toast"); t.textContent=m; t.classList.add("on");
+  clearTimeout(t._h); t._h=setTimeout(function(){ t.classList.remove("on"); }, ms||2200);
+}
+function fmtSpot(y){
+  y=Math.round(y);
+  if(y>=100) return "Goal line";
+  if(y<=0)   return "Own 0";
+  if(y===50) return "50";
+  return y<50 ? "Own "+y : "Opp "+(100-y);
+}
+function fmtDD(){
+  var o=["1st","2nd","3rd","4th"][Math.min(Math.max(state.down,1),4)-1];
+  return (state.yardline+state.dist>=100) ? o+" & Goal" : o+" & "+Math.round(state.dist);
+}
+function plabel(p){
+  var n=Number(p.number);
+  if(p.number===null||isNaN(n)) return p.name;
+  return p.name ? "#"+n+" "+p.name : "#"+n;
+}
+function flipUnit(){ state.unit = state.unit==="O" ? "D" : "O"; }
+function snapshot(){
+  return JSON.stringify({log:state.log,unit:state.unit,qtr:state.qtr,drive:state.drive,
+                         down:state.down,dist:state.dist,yardline:state.yardline,qb:state.qb});
+}
+function qbList(){
+  var o=state.roster.filter(function(p){ return p.unit==="O"||p.unit==="B"; });
+  var q=o.filter(function(p){ return (p.pos||"").toUpperCase()==="QB"; });
+  return q.length?q:o;
+}
+
+/* ---------- chips ---------- */
+function chipRow(el,items,selected,onPick,cls){
+  el.innerHTML="";
+  items.forEach(function(it){
+    var b=document.createElement("button");
+    var on=Array.isArray(selected)?selected.indexOf(it.v)>-1:it.v===selected;
+    b.className="chip"+(cls?" "+cls:"")+(on?" on":"");
+    b.textContent=it.t; b.dataset.v=it.v;
+    b.onclick=function(){ onPick(it.v); };
+    el.appendChild(b);
+  });
+}
+
+/* ---------- sheet ---------- */
+function openSheet(ptype){
+  cur.ptype=ptype; cur.call=null; cur.player=null; cur.tacklers=[];
+  cur.opp=""; cur.yards=0; cur.flags=[]; cur.qbOpen=false;
+  // QB carries over from the last play unless it gets changed here.
+  if(state.unit==="O" && !state.qb){
+    var q=qbList(); if(q.length) state.qb=plabel(q[0]);
+  }
+  id("sheet-title").textContent=(state.unit==="O"?"Our ":"Their ")+ptype.toLowerCase();
+  renderCalls(); renderQB(); renderWho(); renderYards(); renderFlags();
+  id("overlay").classList.add("on"); id("sheet").classList.add("on");
+  document.body.style.overflow="hidden";
+}
+function closeSheet(){
+  id("overlay").classList.remove("on"); id("sheet").classList.remove("on");
+  document.body.style.overflow="";
+}
+
+/* ---------- renders ---------- */
+function renderBanner(){
+  id("b-dd").textContent=fmtDD();
+  id("b-spot").textContent=fmtSpot(state.yardline);
+  id("b-meta").innerHTML="Q"+state.qtr+" &nbsp;|&nbsp; Drive "+state.drive+"<br>"+
+    (state.unit==="O"?"Our ball":"Their ball")+" &nbsp;|&nbsp; "+state.log.length+" plays";
+}
+function renderUnit(){
+  Array.prototype.forEach.call(id("unit-chips").children,function(b){
+    b.classList.toggle("on",b.dataset.v===state.unit);
+  });
+}
+function renderCalls(){
+  var list=state.plays.filter(function(p){ return p.type===cur.ptype; });
+  var el=id("call-chips");
+  if(!list.length){ el.innerHTML='<p class="note">No '+cur.ptype+' plays in your list.</p>'; return; }
+  chipRow(el,list.map(function(p){ return {v:p.play,t:p.play}; }),cur.call,function(v){
+    cur.call=(cur.call===v?null:v); renderCalls();
+  });
+}
+function renderQB(){
+  var box=id("qb-block");
+  if(state.unit!=="O"){ box.innerHTML=""; return; }
+  if(!cur.qbOpen){
+    box.innerHTML='<h4>Quarterback</h4><div class="qbbar">'+
+      '<span class="lab">QB</span><span class="val">'+(state.qb||"not set")+'</span>'+
+      '<button id="qb-change">Change</button></div>';
+    id("qb-change").onclick=function(){ cur.qbOpen=true; renderQB(); };
+  } else {
+    box.innerHTML='<h4>Quarterback</h4><div class="chips" id="qb-chips"></div>';
+    chipRow(id("qb-chips"),qbList().map(function(p){ return {v:plabel(p),t:plabel(p)}; }),
+      state.qb,function(v){ state.qb=v; cur.qbOpen=false; save(); renderQB(); },"sm");
+  }
+}
+function renderWho(){
+  var box=id("who-box");
+  if(state.unit==="O"){
+    id("who-label").textContent = cur.ptype==="Run" ? "Ball carrier" : "Targeted";
+    box.innerHTML='<div class="chips" id="who-chips"></div>';
+    var r=state.roster.filter(function(p){ return p.unit==="O"||p.unit==="B"; });
+    chipRow(id("who-chips"),r.map(function(p){ return {v:plabel(p),t:plabel(p)}; }),cur.player,function(v){
+      cur.player=(cur.player===v?null:v); renderWho();
+    });
+  } else {
+    id("who-label").textContent="Their ball carrier / target";
+    box.innerHTML='<input id="opp-num" type="number" inputmode="numeric" placeholder="Their jersey number" style="margin-bottom:10px">'+
+      '<h4>Tackler</h4><div class="chips" id="tk-chips"></div>'+
+      '<p class="note" style="margin-top:6px">Tap two for a split tackle. Each gets a half.</p>';
+    var o=id("opp-num"); o.value=cur.opp; o.oninput=function(){ cur.opp=o.value; };
+    var d=state.roster.filter(function(p){ return p.unit==="D"||p.unit==="B"; });
+    chipRow(id("tk-chips"),d.map(function(p){ return {v:plabel(p),t:plabel(p)}; }),cur.tacklers,function(v){
+      var i=cur.tacklers.indexOf(v);
+      if(i>-1) cur.tacklers.splice(i,1); else cur.tacklers.push(v);
+      renderWho();
+    });
+  }
+}
+function renderYards(){ id("y-read").textContent=(cur.yards>0?"+":"")+cur.yards; }
+function renderFlags(){
+  chipRow(id("flag-chips"),flagsFor(state.unit,cur.ptype).map(function(f){ return {v:f,t:f}; }),
+    cur.flags,function(v){
+      var i=cur.flags.indexOf(v);
+      if(i>-1) cur.flags.splice(i,1); else cur.flags.push(v);
+      if(cur.flags.indexOf("Incomplete")>-1){ cur.yards=0; renderYards(); }
+      renderFlags();
+    });
+}
+function renderFix(){
+  id("f-spot").value=Math.round(state.yardline);
+  id("f-down").value=state.down;
+  id("f-dist").value=Math.round(state.dist);
+  id("f-qtr").value=state.qtr;
+}
+function renderAll(){ renderBanner(); renderUnit(); renderFix(); renderLog(); renderStats(); }
+
+/* ---------- log ---------- */
+function resultText(p){
+  var f=[];
+  if(p.touchdown) f.push("TD");
+  if(p.first_down) f.push("1st");
+  if(p.interception) f.push("INT");
+  if(p.fumble) f.push("FUM");
+  if(p.forced_fumble) f.push("FF");
+  if(p.incomplete) f.push("Inc");
+  if(p.sack) f.push("Sack");
+  if(p.pbu) f.push("PBU");
+  if(p.tfl) f.push("TFL");
+  if(p.penalty) f.push("Pen");
+  return f.join(" ");
+}
+function renderLog(){
+  var t=id("log-tbl");
+  if(!state.log.length){ t.innerHTML='<tr><td class="t">No plays yet.</td></tr>'; return; }
+  var h="<tr><th>#</th><th>Q</th><th>Side</th><th>Sit</th><th>Ball</th><th>Call</th><th>Who</th><th>Yds</th><th>Result</th></tr>";
+  for(var i=state.log.length-1;i>=0;i--){
+    var p=state.log[i];
+    var who=p.unit==="O"?p.player:(p.tacklers||"");
+    h+="<tr><td>"+p.play_no+"</td><td>"+p.quarter+"</td><td class='t'>"+p.unit+"</td>"+
+       "<td>"+p.down+"&amp;"+Math.round(p.distance)+"</td>"+
+       "<td class='t'>"+fmtSpot(p.yardline_start)+"</td>"+
+       "<td class='t'>"+p.play_type.charAt(0)+": "+p.play_call+"</td>"+
+       "<td class='t'>"+who+"</td><td>"+p.yards+"</td>"+
+       "<td class='t'>"+resultText(p)+"</td></tr>";
+  }
+  t.innerHTML=h;
+}
+
+/* ---------- stats ---------- */
+function tbl(el,cols,rows){
+  if(!rows.length){ el.innerHTML='<tr><td class="t">Nothing yet.</td></tr>'; return; }
+  var h="<tr>"+cols.map(function(c){ return "<th>"+c+"</th>"; }).join("")+"</tr>";
+  rows.forEach(function(r){
+    h+="<tr>"+r.map(function(v,i){ return "<td"+(i===0?' class="t"':"")+">"+v+"</td>"; }).join("")+"</tr>";
+  });
+  el.innerHTML=h;
+}
+function sumF(a,f){ return a.reduce(function(s,x){ return s+f(x); },0); }
+function splitTk(p){
+  return (p.tacklers||"").split(";").map(function(s){ return s.trim(); }).filter(Boolean);
+}
+function renderStats(){
+  var L=state.log;
+  function by(u,t){ return L.filter(function(p){ return p.unit===u&&(!t||p.play_type===t); }); }
+  function summary(rows,label){
+    if(!rows.length) return null;
+    var y=sumF(rows,function(p){ return p.yards; });
+    var third=rows.filter(function(p){ return p.down===3; });
+    var conv=third.filter(function(p){ return p.first_down||p.touchdown; });
+    return [label,rows.length,y,(y/rows.length).toFixed(2),
+            sumF(rows,function(p){ return p.touchdown?1:0; }),
+            sumF(rows,function(p){ return p.first_down?1:0; }),
+            conv.length+"/"+third.length,
+            rows.filter(function(p){ return p.yards>=10; }).length];
+  }
+  tbl(id("team-tbl"),["","Plays","Yds","Y/P","TD","1st","3rd dn","10+"],
+    [summary(by("O"),"Offense all"),summary(by("O","Run"),"Offense run"),summary(by("O","Pass"),"Offense pass"),
+     summary(by("D"),"Defense all"),summary(by("D","Run"),"Defense run"),summary(by("D","Pass"),"Defense pass")
+    ].filter(Boolean));
+
+  // QBs
+  var qm={};
+  L.filter(function(p){ return p.unit==="O"&&p.play_type==="Pass"&&p.qb; }).forEach(function(p){
+    if(!qm[p.qb]) qm[p.qb]={n:0,c:0,y:0,td:0,int:0,sk:0};
+    var g=qm[p.qb]; g.n++;
+    if(!p.incomplete&&!p.sack) g.c++;
+    g.y+=p.yards; g.td+=p.touchdown?1:0; g.int+=p.interception?1:0; g.sk+=p.sack?1:0;
+  });
+  tbl(id("qb-tbl"),["QB","Cmp/Att","Pct","Yds","TD","INT","Sk"],
+    Object.keys(qm).map(function(k){ var g=qm[k];
+      return [k,g.c+"/"+g.n,(100*g.c/g.n).toFixed(0)+"%",g.y,g.td,g.int,g.sk]; }));
+
+  // skill players
+  var pm={};
+  L.filter(function(p){ return p.unit==="O"&&p.player; }).forEach(function(p){
+    var k=p.player+"|"+p.play_type;
+    if(!pm[k]) pm[k]={name:p.player,type:p.play_type,n:0,c:0,y:0,td:0,lg:-99};
+    var g=pm[k]; g.n++; if(!p.incomplete) g.c++;
+    g.y+=p.yards; g.td+=p.touchdown?1:0; if(p.yards>g.lg) g.lg=p.yards;
+  });
+  tbl(id("plyr-tbl"),["Player","Type","Touch","Yds","Avg","Long","TD"],
+    Object.keys(pm).map(function(k){ var g=pm[k];
+      var touch=g.type==="Pass"?g.c+"/"+g.n:String(g.n);
+      var div=g.type==="Pass"?(g.c||1):g.n;
+      return [g.name,g.type,touch,g.y,(g.y/div).toFixed(2),g.lg,g.td];
+    }).sort(function(a,b){ return b[3]-a[3]; }));
+
+  // defense, split tackles count a half each
+  var dm={};
+  L.filter(function(p){ return p.unit==="D"; }).forEach(function(p){
+    var t=splitTk(p); if(!t.length) return;
+    var share=1/t.length;
+    t.forEach(function(nm){
+      if(!dm[nm]) dm[nm]={tkl:0,tfl:0,sk:0,pbu:0,int:0,ff:0,y:0};
+      var g=dm[nm];
+      if(!p.incomplete&&!p.touchdown) g.tkl+=share;
+      if(p.tfl) g.tfl+=share;
+      if(p.sack) g.sk+=share;
+      if(p.pbu) g.pbu+=1;
+      if(p.interception) g.int+=1;
+      if(p.forced_fumble) g.ff+=1;
+      g.y+=p.yards*share;
+    });
+  });
+  tbl(id("def-tbl"),["Player","Tkl","TFL","Sk","PBU","INT","FF","Yds"],
+    Object.keys(dm).map(function(k){ var g=dm[k];
+      return [k,g.tkl.toFixed(1),g.tfl.toFixed(1),g.sk.toFixed(1),g.pbu,g.int,g.ff,Math.round(g.y)];
+    }).sort(function(a,b){ return b[1]-a[1]; }));
+
+  // play calls
+  var cm={};
+  L.forEach(function(p){
+    var k=p.unit+"|"+p.play_call;
+    if(!cm[k]) cm[k]={u:p.unit,c:p.play_call,n:0,y:0,td:0};
+    cm[k].n++; cm[k].y+=p.yards; cm[k].td+=p.touchdown?1:0;
+  });
+  tbl(id("call-tbl"),["Call","Side","Plays","Yds","Avg","TD"],
+    Object.keys(cm).map(function(k){ var g=cm[k];
+      return [g.c,g.u,g.n,g.y,(g.y/g.n).toFixed(2),g.td]; })
+      .sort(function(a,b){ return b[4]-a[4]; }));
+}
+
+/* ---------- record ---------- */
+function record(){
+  if(!cur.call){ toast("Pick a play call first."); return; }
+  var has=function(f){ return cur.flags.indexOf(f)>-1; };
+  var yds=has("Incomplete")?0:(parseInt(cur.yards,10)||0);
+  var start=state.yardline;
+  var end=Math.max(0,Math.min(100,start+yds));
+  var gained=end-start;
+  var turnover=has("INT")||has("Fumble lost");
+  var autoFirst=!has("TD")&&!turnover&&!has("Penalty")&&(gained>=state.dist||end>=100);
+
+  hist.push(snapshot()); if(hist.length>60) hist.shift();
+
+  state.log.push({
+    play_no:state.log.length+1,
+    time:new Date().toTimeString().slice(0,8),
+    quarter:state.qtr, unit:state.unit, drive:state.drive,
+    down:state.down, distance:state.dist,
+    yardline_start:start, hash:state.hash,
+    play_type:cur.ptype, play_call:cur.call,
+    qb: state.unit==="O" ? (state.qb||"") : "",
+    player: state.unit==="O" ? (cur.player||"") : (cur.opp?"Opp #"+cur.opp:"Opp"),
+    tacklers: state.unit==="O" ? "" : cur.tacklers.join("; "),
+    tackler_count: state.unit==="O" ? 0 : cur.tacklers.length,
+    yards:yds,
+    touchdown:has("TD"), first_down:autoFirst,
+    interception:has("INT"), fumble:has("Fumble lost"),
+    forced_fumble:has("FF"), turnover:turnover,
+    incomplete:has("Incomplete"), sack:has("Sack"),
+    pbu:has("PBU"), tfl:has("TFL"), penalty:has("Penalty"),
+    yardline_end:end
+  });
+
+  if(has("TD")||end>=100){
+    state.drive++; flipUnit(); state.yardline=25; state.down=1; state.dist=10;
+    toast("Touchdown. Possession flipped.",3000);
+  } else if(turnover){
+    state.drive++; flipUnit(); state.yardline=100-end; state.down=1; state.dist=10;
+    toast((has("INT")?"Interception.":"Fumble recovered.")+" Possession flipped.",3000);
+  } else if(has("Penalty")){
+    state.yardline=end;
+    toast("Penalty logged.\nFix down and distance.",3500);
+  } else if(autoFirst){
+    state.yardline=end; state.down=1; state.dist=Math.min(10,100-end);
+  } else if(state.down>=4){
+    state.drive++; flipUnit(); state.yardline=100-end; state.down=1; state.dist=10;
+    toast("Turnover on downs.",3000);
+  } else {
+    state.yardline=end; state.down++; state.dist=Math.max(1,state.dist-gained);
+  }
+
+  closeSheet(); save(); renderAll();
+}
+
+function undo(){
+  if(!hist.length){ toast("Nothing to undo."); return; }
+  var s=JSON.parse(hist.pop());
+  state.log=s.log; state.unit=s.unit; state.qtr=s.qtr; state.drive=s.drive;
+  state.down=s.down; state.dist=s.dist; state.yardline=s.yardline;
+  if(s.qb!==undefined) state.qb=s.qb;
+  save(); renderAll(); toast("Last play removed.");
+}
+
+/* ---------- CSV ---------- */
+var COLS=["play_no","time","quarter","unit","drive","down","distance","yardline_start","hash",
+          "play_type","play_call","qb","player","tacklers","tackler_count","yards",
+          "touchdown","first_down","interception","fumble","forced_fumble","turnover","incomplete",
+          "sack","pbu","tfl","penalty","yardline_end"];
+function csvCell(v){
+  if(typeof v==="boolean") return v?"TRUE":"FALSE";
+  var s=String(v===null||v===undefined?"":v);
+  return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s;
+}
+function toCSV(){
+  return [COLS.join(",")].concat(state.log.map(function(p){
+    return COLS.map(function(c){ return csvCell(p[c]); }).join(",");
+  })).join("\n");
+}
+function exportCSV(){
+  if(!state.log.length){ toast("No plays to export."); return; }
+  var a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([toCSV()],{type:"text/csv"}));
+  a.download=(state.gameName||"game").replace(/[^A-Za-z0-9_.-]+/g,"_")+"_plays.csv";
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(a.href); },1000);
+}
+
+/* ---------- setup parsing ---------- */
+function parsePlays(txt){
+  return txt.split(/\r?\n/).map(function(l){
+    l=l.trim(); if(!l) return null;
+    var p=l.split(","), nm=p[0].trim();
+    if(!nm||/^play$/i.test(nm)) return null;
+    return {play:nm,type:/^p/i.test((p[1]||"").trim())?"Pass":"Run"};
+  }).filter(Boolean);
+}
+function parseRoster(txt){
+  return txt.split(/\r?\n/).map(function(l){
+    l=l.trim(); if(!l) return null;
+    var p=l.split(","),a=(p[0]||"").trim(),b=(p[1]||"").trim();
+    var c=(p[2]||"B").trim().toUpperCase().charAt(0), ps=(p[3]||"").trim();
+    if(/^(number|no)$/i.test(a)) return null;
+    var num=(a===""||isNaN(Number(a)))?null:Number(a);
+    var nm=num===null?a:b;
+    if(num===null&&!nm) return null;
+    return {number:num,name:nm||"",unit:(c==="O"||c==="D")?c:"B",pos:ps};
+  }).filter(Boolean);
+}
+function playsToText(){ return state.plays.map(function(p){ return p.play+", "+p.type; }).join("\n"); }
+function rosterToText(){
+  return state.roster.map(function(p){
+    return (p.number===null?"":p.number)+", "+p.name+", "+p.unit+(p.pos?", "+p.pos:"");
+  }).join("\n");
+}
+
+/* ---------- wiring ---------- */
+Array.prototype.forEach.call(document.querySelectorAll("nav button"),function(b){
+  b.onclick=function(){
+    Array.prototype.forEach.call(document.querySelectorAll("nav button"),function(x){ x.classList.remove("on"); });
+    b.classList.add("on");
+    ["track","log","stats","setup"].forEach(function(t){
+      id("tab-"+t).classList.toggle("hide",t!==b.dataset.tab);
+    });
+    if(b.dataset.tab==="stats") renderStats();
+    if(b.dataset.tab==="log") renderLog();
+    window.scrollTo(0,0);
+  };
+});
+Array.prototype.forEach.call(id("unit-chips").children,function(b){
+  b.onclick=function(){ state.unit=b.dataset.v; save(); renderUnit(); renderBanner(); };
+});
+id("btn-run").onclick=function(){ openSheet("Run"); };
+id("btn-pass").onclick=function(){ openSheet("Pass"); };
+id("sheet-close").onclick=closeSheet;
+id("overlay").onclick=function(e){ if(e.target===id("overlay")) closeSheet(); };
+
+chipRow(id("y-quick"),QUICK.map(function(y){ return {v:y,t:(y>0?"+":"")+y}; }),null,
+  function(v){ cur.yards=v; renderYards(); });
+id("y-minus").onclick=function(){ cur.yards--; renderYards(); };
+id("y-plus").onclick=function(){ cur.yards++; renderYards(); };
+id("y-flip").onclick=function(){ cur.yards=-cur.yards; renderYards(); };
+
+id("record").onclick=record;
+id("undo").onclick=undo;
+id("newdrive").onclick=function(){
+  hist.push(snapshot());
+  state.drive++; flipUnit(); state.yardline=25; state.down=1; state.dist=10;
+  save(); renderAll(); toast("New drive. Fix the spot if it isn't the 25.",3000);
+};
+id("applyfix").onclick=function(){
+  function n(eid,d){ var v=parseInt(id(eid).value,10); return isNaN(v)?d:v; }
+  state.yardline=Math.max(0,Math.min(100,n("f-spot",state.yardline)));
+  state.down=Math.max(1,Math.min(4,n("f-down",state.down)));
+  state.dist=Math.max(1,n("f-dist",state.dist));
+  state.qtr=Math.max(1,n("f-qtr",state.qtr));
+  save(); renderAll(); toast("Situation updated.");
+};
+Array.prototype.forEach.call(id("hash-chips").children,function(b){
+  b.onclick=function(){
+    state.hash=b.dataset.v;
+    Array.prototype.forEach.call(id("hash-chips").children,function(x){
+      x.classList.toggle("on",x.dataset.v===state.hash);
+    });
+    save();
+  };
+});
+
+id("export").onclick=exportCSV;
+id("copycsv").onclick=function(){
+  if(!navigator.clipboard){ toast("Use Export instead."); return; }
+  navigator.clipboard.writeText(toCSV())
+    .then(function(){ toast("CSV copied."); })
+    .catch(function(){ toast("Copy failed. Use Export."); });
+};
+id("delete-last").onclick=function(){
+  if(!state.log.length){ toast("Nothing to delete."); return; }
+  if(confirm("Delete the last play?\nDown and distance will not roll back.")){
+    state.log.pop(); save(); renderAll();
+  }
+};
+
+id("gamename").value=state.gameName;
+id("plays-txt").value=playsToText();
+id("roster-txt").value=rosterToText();
+id("gamename").oninput=function(){ state.gameName=id("gamename").value; save(); };
+id("save-plays").onclick=function(){
+  var p=parsePlays(id("plays-txt").value);
+  if(!p.length){ toast("No plays found. Check the format."); return; }
+  state.plays=p; save(); toast(p.length+" plays saved.");
+};
+id("save-roster").onclick=function(){
+  var r=parseRoster(id("roster-txt").value);
+  if(!r.length){ toast("No players found. Check the format."); return; }
+  state.roster=r;
+  if(state.qb && !r.some(function(p){ return plabel(p)===state.qb; })) state.qb=null;
+  save(); toast(r.length+" players saved.");
+};
+function readFile(input,target,after){
+  input.onchange=function(){
+    var f=input.files[0]; if(!f) return;
+    var rd=new FileReader();
+    rd.onload=function(){ id(target).value=rd.result; after(); };
+    rd.readAsText(f); input.value="";
+  };
+}
+readFile(id("f-plays"),"plays-txt",function(){ id("save-plays").click(); });
+readFile(id("f-roster"),"roster-txt",function(){ id("save-roster").click(); });
+id("clear").onclick=function(){
+  if(!confirm("Clear every play in this game?\nExport first. This cannot be undone.")) return;
+  state.log=[]; state.down=1; state.dist=10; state.yardline=25;
+  state.drive=1; state.qtr=1; state.unit="O"; hist=[];
+  save(); renderAll(); toast("Game cleared.");
+};
+
+renderAll();
+if(state.log.length) toast("Game restored: "+state.log.length+" plays.",3000);
+if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(function(){});
+</script>
+</body>
+</html>
