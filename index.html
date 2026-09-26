@@ -73,8 +73,13 @@ label{display:block; font-size:13px; color:var(--dim); margin:10px 0 4px; font-w
 .yards-row{display:flex; align-items:center; gap:10px; margin-bottom:8px;}
 .y-read{font-size:42px; font-weight:700; min-width:78px; text-align:center;
   font-variant-numeric:tabular-nums; color:var(--red-soft);}
-.ybtns{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px;}
-.ybtns .chip{flex:1 0 50px; text-align:center; padding:11px 0; font-variant-numeric:tabular-nums; font-size:15px;}
+.dpad{display:grid; grid-template-columns:1fr 1fr 1fr; gap:7px; margin-bottom:10px;}
+.dpad button{background:var(--raise); border:1px solid var(--line); border-radius:10px; color:var(--chalk);
+  font:inherit; font-size:21px; font-weight:600; padding:15px 0; cursor:pointer;}
+.dpad button.clear{color:var(--red-soft); font-size:15px; font-weight:700;}
+.num-pop{background:var(--surface); border:1px solid var(--line); border-radius:11px; padding:10px; margin:8px 0;}
+.num-pop .numread{font-size:36px; font-weight:700; text-align:center;
+  font-variant-numeric:tabular-nums; margin-bottom:8px;}
 
 .overlay{position:fixed; inset:0; background:rgba(0,0,0,.72); z-index:200;
   opacity:0; transition:opacity .22s; pointer-events:none;}
@@ -143,7 +148,12 @@ td.t{font-variant-numeric:normal;}
 
   <h4>Fix the situation</h4>
   <div class="row3">
-    <div><label>Ball on</label><input id="f-spot" type="number" inputmode="numeric" min="0" max="100"></div>
+    <div><label>Ball on</label><input id="f-spot" type="number" inputmode="numeric" min="0" max="50">
+      <div class="chips" style="margin-top:4px" id="side-chips">
+        <button class="chip sm on" data-v="own">Own</button>
+        <button class="chip sm" data-v="opp">Opp</button>
+      </div>
+    </div>
     <div><label>Down</label><input id="f-down" type="number" inputmode="numeric" min="1" max="4"></div>
     <div><label>To go</label><input id="f-dist" type="number" inputmode="numeric" min="1" max="99"></div>
   </div>
@@ -158,7 +168,8 @@ td.t{font-variant-numeric:normal;}
     </div>
   </div>
   <button class="sec" id="applyfix" style="width:100%;margin-top:9px">Apply</button>
-  <p class="note">Ball on is 0&ndash;100 from the offense's own goal line. 25 = own 25, 75 = their 25.</p>
+  <p class="note">Ball on is the number painted on the field (0&ndash;50) plus whose side: Own 20 shows
+  everywhere else as -20, their 20 (Opp) shows as 20.</p>
 </section>
 
 <!-- LOG -->
@@ -193,6 +204,14 @@ td.t{font-variant-numeric:normal;}
   <div id="storage-warn" class="warn hide"></div>
   <label>Game name</label>
   <input id="gamename" placeholder="2026-09-11 vs Handsworth">
+
+  <h4>Roster mode</h4>
+  <div class="chips" id="rostermode-chips">
+    <button class="chip" data-v="on">On &mdash; pick from roster</button>
+    <button class="chip" data-v="off">Off &mdash; enter jersey #</button>
+  </div>
+  <p class="note" style="margin-top:6px">Off: type each player's number during the play instead of picking a
+  name. Numbers you use are remembered as chips for the rest of this game.</p>
 
   <h4>Play list</h4>
   <p class="note" style="margin-top:0">One per line: <code>Play Name, Run</code> or <code>Play Name, Pass</code></p>
@@ -240,13 +259,9 @@ td.t{font-variant-numeric:normal;}
     <h4>Yards</h4>
     <div class="yards-row">
       <div class="y-read" id="y-read">0</div>
-      <div class="row3" style="flex:1">
-        <button class="sec" id="y-minus">&minus;1</button>
-        <button class="sec" id="y-plus">+1</button>
-        <button class="sec" id="y-flip">+/&minus;</button>
-      </div>
+      <button class="sec" id="y-flip" style="flex:0 0 68px">+/&minus;</button>
     </div>
-    <div class="ybtns" id="y-quick"></div>
+    <div class="dpad" id="y-dpad"></div>
 
     <h4>Result</h4>
     <div class="chips" id="flag-chips"></div>
@@ -293,8 +308,6 @@ var DEF_ROSTER=[
   {number:55,name:"Hart",unit:"D",pos:""},{number:80,name:"Iverson",unit:"O",pos:""},
   {number:84,name:"Bell",unit:"O",pos:""}
 ];
-var QUICK=[-5,-2,0,1,2,3,4,5,7,10,15,20];
-
 /* Result flags depend on who has the ball and what kind of play it was. */
 function flagsFor(unit,ptype){
   if(unit==="O") return ptype==="Run"
@@ -308,9 +321,12 @@ function flagsFor(unit,ptype){
 /* ---------- state ---------- */
 var state=loadState()||{
   gameName:"", plays:DEF_PLAYS, roster:DEF_ROSTER, log:[],
-  unit:"O", qtr:1, drive:1, down:1, dist:10, yardline:25, hash:"M", qb:null
+  unit:"O", qtr:1, drive:1, down:1, dist:10, yardline:25, hash:"M", qb:null,
+  rosterMode:true, seenNumbers:[]
 };
 if(state.qb===undefined) state.qb=null;
+if(state.rosterMode===undefined) state.rosterMode=true;
+if(!state.seenNumbers) state.seenNumbers=[];
 var hist=[];
 var cur={ptype:"Run", call:null, player:null, tacklers:[], yards:0, flags:[], qbOpen:false};
 if(!storeOK) showWarn();
@@ -326,7 +342,7 @@ function fmtSpot(y){
   if(y>=100) return "Goal line";
   if(y<=0)   return "Own 0";
   if(y===50) return "50";
-  return y<50 ? "Own "+y : "Opp "+(100-y);
+  return y<50 ? "-"+y : String(100-y);
 }
 function fmtDD(){
   var o=["1st","2nd","3rd","4th"][Math.min(Math.max(state.down,1),4)-1];
@@ -343,9 +359,61 @@ function snapshot(){
                          down:state.down,dist:state.dist,yardline:state.yardline,qb:state.qb});
 }
 function qbList(){
-  var o=state.roster.filter(function(p){ return p.unit==="O"||p.unit==="B"; });
+  var o=rosterFor("O");
+  if(!state.rosterMode) return o;      // no position data to filter by without a roster
   var q=o.filter(function(p){ return (p.pos||"").toUpperCase()==="QB"; });
   return q.length?q:o;
+}
+/* Roster mode: pick players from the saved roster. Off: the numbers typed in so far this game
+   (no names) -- a lightweight roster built up on the fly instead of pre-loaded. */
+function rosterFor(unit){
+  return state.rosterMode
+    ? state.roster.filter(function(p){ return p.unit===unit||p.unit==="B"; })
+    : state.seenNumbers.map(function(n){ return {number:n,name:"",unit:"B"}; });
+}
+function addSeenNumber(n){
+  n=Math.max(0,Math.min(99,Math.round(n)));
+  if(state.seenNumbers.indexOf(n)===-1){
+    state.seenNumbers.push(n);
+    state.seenNumbers.sort(function(a,b){ return a-b; });
+  }
+  save();
+}
+/* Shift-register digit entry: each tap adds a new ones digit and bumps the old one into the
+   tens place -- so "first digit then second, tens then ones" falls out for free, and a single
+   tap alone gives a single-digit number. */
+function digitInto(val,d){
+  var sign=val<0?-1:1;
+  return sign*((Math.abs(val)*10+d)%100);
+}
+function buildDpad(el,onDigit,onClear){
+  el.innerHTML="";
+  [1,2,3,4,5,6,7,8,9,"C",0,""].forEach(function(v){
+    var b=document.createElement("button");
+    if(v===""){ b.style.visibility="hidden"; el.appendChild(b); return; }
+    b.textContent=v;
+    if(v==="C"){ b.className="clear"; b.onclick=onClear; }
+    else b.onclick=function(){ onDigit(v); };
+    el.appendChild(b);
+  });
+}
+/* An inline "type a new jersey number" panel, rendered into `container` (cleared first).
+   Calls onUse(n) and clears itself once the coach confirms. */
+function openNumberEntry(container,onUse){
+  var val=0;
+  var readEl=document.createElement("div"); readEl.className="numread"; readEl.textContent="0";
+  var padEl=document.createElement("div"); padEl.className="dpad";
+  var rowEl=document.createElement("div"); rowEl.className="row2"; rowEl.style.marginTop="6px";
+  var cancelBtn=document.createElement("button"); cancelBtn.className="sec"; cancelBtn.textContent="Cancel";
+  var useBtn=document.createElement("button"); useBtn.className="sec"; useBtn.textContent="Use #0";
+  rowEl.appendChild(cancelBtn); rowEl.appendChild(useBtn);
+  var wrap=document.createElement("div"); wrap.className="num-pop";
+  wrap.appendChild(readEl); wrap.appendChild(padEl); wrap.appendChild(rowEl);
+  container.innerHTML=""; container.appendChild(wrap);
+  function refresh(){ readEl.textContent=val; useBtn.textContent="Use #"+val; }
+  buildDpad(padEl,function(d){ val=digitInto(val,d); refresh(); },function(){ val=0; refresh(); });
+  cancelBtn.onclick=function(){ container.innerHTML=""; };
+  useBtn.onclick=function(){ onUse(val); container.innerHTML=""; };
 }
 
 /* ---------- chips ---------- */
@@ -412,26 +480,54 @@ function renderQB(){
       '<button id="qb-change">Change</button></div>';
     id("qb-change").onclick=function(){ cur.qbOpen=true; renderQB(); };
   } else {
-    box.innerHTML='<h4>Quarterback</h4><div class="chips" id="qb-chips"></div>';
-    chipRow(id("qb-chips"),qbList().map(function(p){ return {v:plabel(p),t:plabel(p)}; }),
-      state.qb,function(v){ state.qb=v; cur.qbOpen=false; save(); renderQB(); },"sm");
+    box.innerHTML='<h4>Quarterback</h4><div class="chips" id="qb-chips"></div><div id="qb-extra"></div>';
+    var qitems=qbList().map(function(p){ return {v:plabel(p),t:plabel(p)}; });
+    if(!state.rosterMode) qitems.push({v:"__add",t:"+ New #"});
+    chipRow(id("qb-chips"),qitems,state.qb,function(v){
+      if(v==="__add"){
+        openNumberEntry(id("qb-extra"),function(n){
+          addSeenNumber(n); state.qb=plabel({number:n,name:""}); cur.qbOpen=false; save(); renderQB();
+        });
+        return;
+      }
+      state.qb=v; cur.qbOpen=false; save(); renderQB();
+    },"sm");
   }
 }
 function renderWho(){
   var box=id("who-box");
   if(state.unit==="O"){
     id("who-label").textContent = cur.ptype==="Run" ? "Ball carrier" : "Targeted";
-    box.innerHTML='<div class="chips" id="who-chips"></div>';
-    var r=state.roster.filter(function(p){ return p.unit==="O"||p.unit==="B"; });
-    chipRow(id("who-chips"),r.map(function(p){ return {v:plabel(p),t:plabel(p)}; }),cur.player,function(v){
+    box.innerHTML='<div class="chips" id="who-chips"></div><div id="who-extra"></div>';
+    var r=rosterFor("O");
+    var items=r.map(function(p){ return {v:plabel(p),t:plabel(p)}; });
+    if(!state.rosterMode) items.push({v:"__add",t:"+ New #"});
+    chipRow(id("who-chips"),items,cur.player,function(v){
+      if(v==="__add"){
+        openNumberEntry(id("who-extra"),function(n){
+          addSeenNumber(n); cur.player=plabel({number:n,name:""}); renderWho();
+        });
+        return;
+      }
       cur.player=(cur.player===v?null:v); renderWho();
     });
   } else {
     id("who-label").textContent="Tackler";
-    box.innerHTML='<div class="chips" id="tk-chips"></div>'+
+    box.innerHTML='<div class="chips" id="tk-chips"></div><div id="who-extra"></div>'+
       '<p class="note" style="margin-top:6px">Tap two for a split tackle. Each gets a half.</p>';
-    var d=state.roster.filter(function(p){ return p.unit==="D"||p.unit==="B"; });
-    chipRow(id("tk-chips"),d.map(function(p){ return {v:plabel(p),t:plabel(p)}; }),cur.tacklers,function(v){
+    var d=rosterFor("D");
+    var ditems=d.map(function(p){ return {v:plabel(p),t:plabel(p)}; });
+    if(!state.rosterMode) ditems.push({v:"__add",t:"+ New #"});
+    chipRow(id("tk-chips"),ditems,cur.tacklers,function(v){
+      if(v==="__add"){
+        openNumberEntry(id("who-extra"),function(n){
+          addSeenNumber(n);
+          var lbl=plabel({number:n,name:""});
+          if(cur.tacklers.indexOf(lbl)===-1) cur.tacklers.push(lbl);
+          renderWho();
+        });
+        return;
+      }
       var i=cur.tacklers.indexOf(v);
       if(i>-1) cur.tacklers.splice(i,1); else cur.tacklers.push(v);
       renderWho();
@@ -449,12 +545,23 @@ function renderFlags(){
     });
 }
 function renderFix(){
-  id("f-spot").value=Math.round(state.yardline);
+  var y=Math.round(state.yardline);
+  var side = y<=50 ? "own" : "opp";
+  var mag = y<=50 ? y : 100-y;
+  id("f-spot").value=mag;
+  Array.prototype.forEach.call(id("side-chips").children,function(b){
+    b.classList.toggle("on",b.dataset.v===side);
+  });
   id("f-down").value=state.down;
   id("f-dist").value=Math.round(state.dist);
   id("f-qtr").value=state.qtr;
 }
-function renderAll(){ renderBanner(); renderUnit(); renderFix(); renderLog(); renderStats(); }
+function renderRosterMode(){
+  Array.prototype.forEach.call(id("rostermode-chips").children,function(b){
+    b.classList.toggle("on",(b.dataset.v==="on")===state.rosterMode);
+  });
+}
+function renderAll(){ renderBanner(); renderUnit(); renderFix(); renderRosterMode(); renderLog(); renderStats(); }
 
 /* ---------- log ---------- */
 function resultText(p){
@@ -719,10 +826,9 @@ id("btn-pass").onclick=function(){ openSheet("Pass"); };
 id("sheet-close").onclick=closeSheet;
 id("overlay").onclick=function(e){ if(e.target===id("overlay")) closeSheet(); };
 
-chipRow(id("y-quick"),QUICK.map(function(y){ return {v:y,t:(y>0?"+":"")+y}; }),null,
-  function(v){ cur.yards=v; renderYards(); });
-id("y-minus").onclick=function(){ cur.yards--; renderYards(); };
-id("y-plus").onclick=function(){ cur.yards++; renderYards(); };
+buildDpad(id("y-dpad"),
+  function(d){ cur.yards=digitInto(cur.yards,d); renderYards(); },
+  function(){ cur.yards=0; renderYards(); });
 id("y-flip").onclick=function(){ cur.yards=-cur.yards; renderYards(); };
 
 id("record").onclick=record;
@@ -732,9 +838,18 @@ id("newdrive").onclick=function(){
   state.drive++; flipUnit(); state.yardline=25; state.down=1; state.dist=10;
   save(); renderAll(); toast("New drive. Fix the spot if it isn't the 25.",3000);
 };
+Array.prototype.forEach.call(id("side-chips").children,function(b){
+  b.onclick=function(){
+    Array.prototype.forEach.call(id("side-chips").children,function(x){ x.classList.remove("on"); });
+    b.classList.add("on");
+  };
+});
 id("applyfix").onclick=function(){
   function n(eid,d){ var v=parseInt(id(eid).value,10); return isNaN(v)?d:v; }
-  state.yardline=Math.max(0,Math.min(100,n("f-spot",state.yardline)));
+  var mag=Math.max(0,Math.min(50,n("f-spot",0)));
+  var sideBtn=id("side-chips").querySelector(".chip.on");
+  var side=sideBtn?sideBtn.dataset.v:"own";
+  state.yardline = side==="opp" ? 100-mag : mag;
   state.down=Math.max(1,Math.min(4,n("f-down",state.down)));
   state.dist=Math.max(1,n("f-dist",state.dist));
   state.qtr=Math.max(1,n("f-qtr",state.qtr));
@@ -748,6 +863,10 @@ Array.prototype.forEach.call(id("hash-chips").children,function(b){
     });
     save();
   };
+});
+
+Array.prototype.forEach.call(id("rostermode-chips").children,function(b){
+  b.onclick=function(){ state.rosterMode=b.dataset.v==="on"; save(); renderRosterMode(); };
 });
 
 id("export").onclick=exportCSV;
@@ -793,7 +912,7 @@ readFile(id("f-roster"),"roster-txt",function(){ id("save-roster").click(); });
 id("clear").onclick=function(){
   if(!confirm("Clear every play in this game?\nExport first. This cannot be undone.")) return;
   state.log=[]; state.down=1; state.dist=10; state.yardline=25;
-  state.drive=1; state.qtr=1; state.unit="O"; hist=[];
+  state.drive=1; state.qtr=1; state.unit="O"; state.seenNumbers=[]; hist=[];
   save(); renderAll(); toast("Game cleared.");
 };
 

@@ -1,5 +1,5 @@
 // Bump CACHE version any time you update index.html
-var CACHE  = "sideline-cg-v6";
+var CACHE  = "sideline-cg-v7";
 var ASSETS = ["./", "./index.html"];
 
 self.addEventListener("install", function(e){
