@@ -126,6 +126,7 @@ td.t{font-variant-numeric:normal;}
   <button data-tab="track" class="on">Track</button>
   <button data-tab="log">Log</button>
   <button data-tab="stats">Stats</button>
+  <button data-tab="sheet">Sheet</button>
   <button data-tab="setup">Setup</button>
 </nav>
 
@@ -197,6 +198,22 @@ td.t{font-variant-numeric:normal;}
   <h4>Offensive play calls</h4>
   <div class="wrap"><table id="call-tbl"></table></div>
   <p class="note">Split tackles count as a half each.</p>
+</section>
+
+<!-- SHEET -->
+<section id="tab-sheet" class="hide">
+  <p class="note" style="margin-top:0">Same layout as the paper stat sheet, computed from this game's
+  log &mdash; copy these straight across. Not tracked here, so fill these in on paper directly:
+  penalties, special teams, and turnover/return yardage, defensive TDs and safeties.</p>
+
+  <h4>Passing</h4>
+  <div class="wrap"><table id="sh-passing"></table></div>
+  <h4>Rushing</h4>
+  <div class="wrap"><table id="sh-rushing"></table></div>
+  <h4>Receiving</h4>
+  <div class="wrap"><table id="sh-receiving"></table></div>
+  <h4>Tackles &amp; Turnovers</h4>
+  <div class="wrap"><table id="sh-tackles"></table></div>
 </section>
 
 <!-- SETUP -->
@@ -689,6 +706,78 @@ function renderStats(){
       .sort(function(a,b){ return b[3]-a[3]; }));
 }
 
+/* ---------- paper stat sheet ---------- */
+function parseNo(label){
+  var m=/^#(\d+)/.exec(label||"");
+  return m?m[1]:(label||"");
+}
+function sheetTable(elId,cols,rows){
+  var el=id(elId);
+  if(!rows.length){ el.innerHTML='<tr><td class="t">No entries yet.</td></tr>'; return; }
+  var h="<tr>"+cols.map(function(c){ return "<th>"+c+"</th>"; }).join("")+"</tr>";
+  rows.forEach(function(r){
+    h+="<tr>"+r.map(function(v,i){ return "<td"+(i===0?' class="t"':"")+">"+v+"</td>"; }).join("")+"</tr>";
+  });
+  var totals=cols.map(function(c,i){
+    if(i===0) return "TOTALS";
+    return rows.reduce(function(s,r){ return s+(Number(r[i])||0); },0);
+  });
+  h+="<tr style='font-weight:700;border-top:2px solid var(--line)'>"+totals.map(function(v,i){
+    return "<td"+(i===0?' class="t"':"")+">"+v+"</td>"; }).join("")+"</tr>";
+  el.innerHTML=h;
+}
+function renderSheet(){
+  var L=state.log;
+
+  var qm={};
+  L.filter(function(p){ return p.unit==="O"&&p.play_type==="Pass"&&p.qb; }).forEach(function(p){
+    if(!qm[p.qb]) qm[p.qb]={no:parseNo(p.qb),att:0,comp:0,yds:0,td:0,int:0,sck:0};
+    var g=qm[p.qb]; g.att++;
+    if(!p.incomplete&&!p.sack) g.comp++;
+    g.yds+=p.yards; g.td+=p.touchdown?1:0; g.int+=p.interception?1:0; g.sck+=p.sack?1:0;
+  });
+  sheetTable("sh-passing",["No.","Att","Comp","Yds","TD","INT","Sck"],
+    Object.keys(qm).map(function(k){ var g=qm[k]; return [g.no,g.att,g.comp,g.yds,g.td,g.int,g.sck]; }));
+
+  var rm={};
+  L.filter(function(p){ return p.unit==="O"&&p.play_type==="Run"&&p.player; }).forEach(function(p){
+    if(!rm[p.player]) rm[p.player]={no:parseNo(p.player),att:0,yds:0,td:0,fum:0};
+    var g=rm[p.player]; g.att++; g.yds+=p.yards; g.td+=p.touchdown?1:0; g.fum+=p.fumble?1:0;
+  });
+  sheetTable("sh-rushing",["No.","Att","Yds","TD","FUM","Lost"],
+    Object.keys(rm).map(function(k){ var g=rm[k]; return [g.no,g.att,g.yds,g.td,g.fum,g.fum]; }));
+
+  var pm2={};
+  L.filter(function(p){ return p.unit==="O"&&p.play_type==="Pass"&&p.player; }).forEach(function(p){
+    if(!pm2[p.player]) pm2[p.player]={no:parseNo(p.player),tgt:0,rec:0,yds:0,td:0};
+    var g=pm2[p.player]; g.tgt++;
+    if(!p.incomplete) g.rec++;
+    g.yds+=p.yards; g.td+=p.touchdown?1:0;
+  });
+  sheetTable("sh-receiving",["No.","Tgt","Rec","Yds","TD"],
+    Object.keys(pm2).map(function(k){ var g=pm2[k]; return [g.no,g.tgt,g.rec,g.yds,g.td]; }));
+
+  var dm2={};
+  L.filter(function(p){ return p.unit==="D"; }).forEach(function(p){
+    var t=splitTk(p); if(!t.length) return;
+    var full=t.length===1, half=t.length===2;
+    t.forEach(function(nm){
+      if(!dm2[nm]) dm2[nm]={no:parseNo(nm),full:0,half:0,tfl:0,sack:0,int:0,pbu:0,ff:0};
+      var g=dm2[nm];
+      if(!p.incomplete&&!p.touchdown){ if(full) g.full++; if(half) g.half++; }
+      if(p.tfl) g.tfl++;
+      if(p.sack) g.sack++;
+      if(p.interception) g.int++;
+      if(p.pbu) g.pbu++;
+      if(p.forced_fumble) g.ff++;
+    });
+  });
+  sheetTable("sh-tackles",["No.","Full Tackle","Half","TFL","TOT","Sack","INT","PBU","FF"],
+    Object.keys(dm2).map(function(k){ var g=dm2[k];
+      return [g.no,g.full,g.half,g.tfl,g.full+g.half,g.sack,g.int,g.pbu,g.ff]; })
+      .sort(function(a,b){ return b[4]-a[4]; }));
+}
+
 /* ---------- record ---------- */
 function record(){
   if(state.unit==="O" && !cur.call){ toast("Pick a play call first."); return; }
@@ -810,11 +899,12 @@ Array.prototype.forEach.call(document.querySelectorAll("nav button"),function(b)
   b.onclick=function(){
     Array.prototype.forEach.call(document.querySelectorAll("nav button"),function(x){ x.classList.remove("on"); });
     b.classList.add("on");
-    ["track","log","stats","setup"].forEach(function(t){
+    ["track","log","stats","sheet","setup"].forEach(function(t){
       id("tab-"+t).classList.toggle("hide",t!==b.dataset.tab);
     });
     if(b.dataset.tab==="stats") renderStats();
     if(b.dataset.tab==="log") renderLog();
+    if(b.dataset.tab==="sheet") renderSheet();
     window.scrollTo(0,0);
   };
 });
